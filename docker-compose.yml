@@ -1,0 +1,68 @@
+# Local stack for the YouTube channel-analysis architecture.
+#   db          PostgreSQL + pgvector (the Supabase storage layer)
+#   transcriber the tiered-fallback transcription microservice (this repo)
+#   n8n         workflow orchestrator
+#
+# Quick start:
+#   cp .env.example .env   # fill in keys
+#   docker compose up -d db transcriber n8n
+#   # then import n8n/workflows/*.json in the n8n UI and apply supabase/schema.sql
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-whytee}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./supabase/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  transcriber:
+    build: ./transcription-service
+    environment:
+      TRANSCRIBER_WHISPER_MODEL: ${TRANSCRIBER_WHISPER_MODEL:-base}
+      TRANSCRIBER_DEFAULT_LANGUAGES: ${TRANSCRIBER_DEFAULT_LANGUAGES:-}
+      TRANSCRIBER_WEBSHARE_PROXY_USERNAME: ${WEBSHARE_PROXY_USERNAME:-}
+      TRANSCRIBER_WEBSHARE_PROXY_PASSWORD: ${WEBSHARE_PROXY_PASSWORD:-}
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:latest
+    environment:
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      # WebSub callbacks need a publicly reachable URL in production.
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: db
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-postgres}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      DB_POSTGRESDB_DATABASE: ${POSTGRES_DB:-whytee}
+    ports:
+      - "5678:5678"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  db_data:
+  n8n_data:

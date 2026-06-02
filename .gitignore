@@ -1,0 +1,29 @@
+# Secrets / local config
+.env
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# Whisper model cache & downloaded audio
+*.wav
+*.mp3
+/tmp/transcriber/
+models/
+
+# n8n / db local data
+n8n_data/
+db_data/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

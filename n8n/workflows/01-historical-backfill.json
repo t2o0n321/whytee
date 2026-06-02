@@ -1,0 +1,90 @@
+{
+  "name": "01 - Historical Corpus Backfill",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/playlistItems",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "part", "value": "snippet,contentDetails" },
+            { "name": "playlistId", "value": "={{ $json.uploadsPlaylistId }}" },
+            { "name": "maxResults", "value": "50" },
+            { "name": "pageToken", "value": "={{ $json.nextPageToken || '' }}" },
+            { "name": "key", "value": "={{ $env.YOUTUBE_API_KEY }}" }
+          ]
+        }
+      },
+      "id": "yt-list",
+      "name": "YouTube Data API (paginate)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "notes": "Loop on nextPageToken to pull every uploaded video id."
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop",
+      "name": "Loop Over Items (rate-limit)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://transcriber:8000/transcribe",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"video_id\": \"{{ $json.contentDetails.videoId }}\",\n  \"languages\": [\"zh-TW\", \"en\"]\n}"
+      },
+      "id": "transcribe",
+      "name": "Transcription Microservice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "amount": 60,
+        "unit": "seconds"
+      },
+      "id": "wait",
+      "name": "Wait 60s (polite crawl)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "options": { "queryName": "match_documents" }
+      },
+      "id": "supabase",
+      "name": "Supabase Vector Store (Insert)",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "notes": "Chunk -> embed via OpenRouter -> insert into pgvector with metadata."
+    }
+  ],
+  "connections": {
+    "Manual Trigger": { "main": [[{ "node": "YouTube Data API (paginate)", "type": "main", "index": 0 }]] },
+    "YouTube Data API (paginate)": { "main": [[{ "node": "Loop Over Items (rate-limit)", "type": "main", "index": 0 }]] },
+    "Loop Over Items (rate-limit)": { "main": [[{ "node": "Transcription Microservice", "type": "main", "index": 0 }]] },
+    "Transcription Microservice": { "main": [[{ "node": "Wait 60s (polite crawl)", "type": "main", "index": 0 }]] },
+    "Wait 60s (polite crawl)": { "main": [[{ "node": "Supabase Vector Store (Insert)", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

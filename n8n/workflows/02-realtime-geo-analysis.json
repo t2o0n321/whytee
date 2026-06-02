@@ -1,0 +1,106 @@
+{
+  "name": "02 - Real-time Monitor + GEO Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "youtube-websub",
+        "options": {}
+      },
+      "id": "websub",
+      "name": "WebSub Webhook (PubSubHubbub)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "notes": "Subscribe to the channel RSS topic; YouTube pushes XML on new uploads."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://transcriber:8000/transcribe",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"video_id\": \"{{ $json.videoId }}\",\n  \"languages\": [\"zh-TW\", \"en\"]\n}"
+      },
+      "id": "transcribe",
+      "name": "Transcription Microservice",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "modelId": "={{ $env.OPENROUTER_MODEL_FAST }}",
+        "messages": { "values": [
+          { "role": "system", "content": "Extract the core entities and keywords from this transcript as a JSON array." },
+          { "role": "user", "content": "={{ $json.text }}" }
+        ] }
+      },
+      "id": "keywords",
+      "name": "OpenRouter - Keyword Extraction (fast)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "notes": "Base URL overridden to https://openrouter.ai/api/v1 in credentials."
+    },
+    {
+      "parameters": {
+        "mode": "load",
+        "topK": 6,
+        "options": { "queryName": "match_documents" }
+      },
+      "id": "rag",
+      "name": "Supabase Vector Store (Retrieve)",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "modelId": "={{ $env.OPENROUTER_MODEL_DEEP }}",
+        "messages": { "values": [
+          { "role": "system", "content": "You are a media-intelligence analyst. Compare the NEW transcript against the RETRIEVED historical excerpts. Respond ONLY with strict JSON: {\"goal\":\"\",\"execution\":\"\",\"outcome\":\"\",\"historical_evolution\":\"\"}." },
+          { "role": "user", "content": "=NEW:\n{{ $json.text }}\n\nHISTORY:\n{{ $json.history }}" }
+        ] }
+      },
+      "id": "geo",
+      "name": "OpenRouter - GEO Synthesis (deep)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [1120, 300],
+      "notes": "GEO = Goal / Execution / Outcome / Historical Evolution."
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "options": { "queryName": "match_documents" }
+      },
+      "id": "store",
+      "name": "Supabase Vector Store (Roll-forward insert)",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "position": [1340, 220]
+    },
+    {
+      "parameters": {
+        "workflowId": "03 - Format & Deliver"
+      },
+      "id": "deliver",
+      "name": "Execute Workflow 03 (Deliver)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1,
+      "position": [1340, 380]
+    }
+  ],
+  "connections": {
+    "WebSub Webhook (PubSubHubbub)": { "main": [[{ "node": "Transcription Microservice", "type": "main", "index": 0 }]] },
+    "Transcription Microservice": { "main": [[{ "node": "OpenRouter - Keyword Extraction (fast)", "type": "main", "index": 0 }]] },
+    "OpenRouter - Keyword Extraction (fast)": { "main": [[{ "node": "Supabase Vector Store (Retrieve)", "type": "main", "index": 0 }]] },
+    "Supabase Vector Store (Retrieve)": { "main": [[{ "node": "OpenRouter - GEO Synthesis (deep)", "type": "main", "index": 0 }]] },
+    "OpenRouter - GEO Synthesis (deep)": { "main": [[
+      { "node": "Supabase Vector Store (Roll-forward insert)", "type": "main", "index": 0 },
+      { "node": "Execute Workflow 03 (Deliver)", "type": "main", "index": 0 }
+    ]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "03 - Format & Deliver (Telegram)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "When Called by Workflow 02",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Render GEO JSON to Telegram MarkdownV2 with required character escaping.\nconst esc = (s = '') => String(s).replace(/[_*\\[\\]()~`>#+\\-=|{}.!]/g, '\\\\$&');\nconst g = $json;\nconst body = [\n  '*🎯 Goal*\\n' + esc(g.goal),\n  '*🛠 Execution*\\n' + esc(g.execution),\n  '*💡 Outcome*\\n' + esc(g.outcome),\n  '*🔄 Historical Evolution*\\n' + esc(g.historical_evolution),\n].join('\\n\\n');\nreturn [{ json: { markdown: body } }];"
+      },
+      "id": "format",
+      "name": "Render MarkdownV2 (escape)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "notes": "Escapes MarkdownV2 specials to avoid 400 Bad Request: can't parse entities."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $env.TELEGRAM_DEFAULT_CHAT_ID }}",
+        "text": "={{ $json.markdown }}",
+        "additionalFields": {
+          "parse_mode": "MarkdownV2",
+          "reply_markup": "{\"inline_keyboard\":[[{\"text\":\"展開完整逐字稿\",\"callback_data\":\"full_transcript\"},{\"text\":\"查詢相關歷史\",\"callback_data\":\"history\"}]]}"
+        }
+      },
+      "id": "send",
+      "name": "Telegram - Send Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [680, 300],
+      "notes": "Uses Telegram credential; inline keyboard turns a push into a mini-app."
+    }
+  ],
+  "connections": {
+    "When Called by Workflow 02": { "main": [[{ "node": "Render MarkdownV2 (escape)", "type": "main", "index": 0 }]] },
+    "Render MarkdownV2 (escape)": { "main": [[{ "node": "Telegram - Send Message", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
