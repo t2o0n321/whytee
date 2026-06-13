@@ -9,7 +9,9 @@ dependencies = [
     "uvicorn[standard]>=0.29",
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
-    "youtube-transcript-api>=0.6.2",
+    # Pin to the 1.x line: the provider uses the instance API (api.list / fetch)
+    # introduced in 1.0, which is incompatible with the 0.6.x classmethods.
+    "youtube-transcript-api>=1.0,<2",
     "yt-dlp>=2024.4.9",
     "faster-whisper>=1.0.1",
     "httpx>=0.27",

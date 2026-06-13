@@ -14,9 +14,13 @@
   "version": "0.1.0",
   "default_languages": ["zh-TW", "zh-Hant", "zh", "en"],
   "whisper_model": "base",
-  "stt_backend": "local"
+  "stt_backend": "local",
+  "proxy_enabled": false
 }
 ```
+
+`proxy_enabled` 為 `false` 時，從伺服器／資料中心 IP 呼叫常遭 YouTube 以
+`403`／`410` 封鎖；服務啟動時會記錄一則警告。見下方錯誤碼與 `docs/security.md`。
 
 每個回應都附帶 `X-Request-ID` 標頭；可由請求端帶入同名標頭以串接 n8n 的日誌追蹤。
 
@@ -64,7 +68,14 @@
 
 `source` 為 `captions`（第一層）或 `whisper_local`（第二層）。
 
-錯誤碼：`400`（缺少識別碼／格式錯誤）、`502`（轉錄失敗，含無字幕且音訊抓取失敗）。
+錯誤碼：
+
+- `400` — 缺少識別碼／格式錯誤。
+- `422` — 請求 body 驗證失敗（`video_id` 與 `url` 皆缺）。
+- `502` — 轉錄失敗。其 `detail` 會明確區分兩類常見原因：
+  - **遭封鎖**：YouTube 以 `403`／`410` 拒絕（`TranscriptBlockedError`），訊息含
+    住宅代理與加大限速延遲的指引。
+  - **其他**：無字幕且音訊抓取／STT 失敗。
 
 ## `POST /transcribe/batch`
 

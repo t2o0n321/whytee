@@ -12,6 +12,12 @@ from __future__ import annotations
 from app.config import get_settings
 
 
+def proxy_enabled() -> bool:
+    """True when residential-proxy credentials are configured."""
+    settings = get_settings()
+    return bool(settings.webshare_proxy_username and settings.webshare_proxy_password)
+
+
 def get_youtube_transcript_proxy():
     """Return a youtube-transcript-api proxy config, or None if disabled.
 

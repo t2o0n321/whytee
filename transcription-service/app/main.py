@@ -22,10 +22,18 @@ from app.models import (
     TranscribeRequest,
     TranscribeResponse,
 )
+from app.proxy import proxy_enabled
 from app.transcribe import transcribe
 
 configure_logging()
 logger = logging.getLogger("transcriber")
+
+if not proxy_enabled():
+    logger.warning(
+        "No residential proxy configured (TRANSCRIBER_WEBSHARE_PROXY_*). "
+        "YouTube frequently blocks datacenter IPs with 403/410; transcription "
+        "may fail from a server. See docs/security.md and docs/setup.md."
+    )
 
 app = FastAPI(
     title="YouTube Transcription Service",
@@ -65,6 +73,7 @@ def health() -> dict:
         "default_languages": settings.default_languages,
         "whisper_model": settings.whisper_model,
         "stt_backend": settings.stt_backend,
+        "proxy_enabled": proxy_enabled(),
     }
 
 

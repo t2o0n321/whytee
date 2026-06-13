@@ -36,3 +36,25 @@ jobs:
 
       - name: Pytest (with coverage)
         run: pytest --cov=app --cov-report=term-missing
+
+  docker-build:
+    name: docker build + boot smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build transcriber image
+        run: docker build -t whytee-transcriber ./transcription-service
+
+      - name: Boot container and probe /health and /ready
+        run: |
+          docker run -d --name transcriber -p 8000:8000 whytee-transcriber
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/health; then ok=1; break; fi
+            sleep 2
+          done
+          echo
+          test "${ok:-0}" = "1" || { echo "service did not become healthy"; docker logs transcriber; exit 1; }
+          curl -fsS http://localhost:8000/ready
+          echo
+          docker rm -f transcriber

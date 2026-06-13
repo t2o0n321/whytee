@@ -16,9 +16,16 @@
 - 逐字稿微服務：FastAPI 端點測試、結構化日誌與 request id、`/ready` 就緒探測。
 - 第二層 STT 新增雲端 Whisper 供應器（OpenRouter／Groq，OpenAI 相容），以環境變數啟用。
 
+- 韌性：字幕供應器將 YouTube 封鎖（403／410／IP block）對應為
+  `TranscriptBlockedError`，附住宅代理與限速指引；服務啟動時若未設定代理會記錄警告。
+- `/health` 新增 `proxy_enabled` 欄位。
+- 選用整合測試（`RUN_INTEGRATION=1`）實際呼叫 YouTube；CI 預設略過。
+- CI 新增 `docker build` + 啟動 `/health`、`/ready` 煙霧測試。
+
 ### 變更
-- `docker-compose.yml`：transcriber 改用 `env_file: .env`，並為 n8n 加入 healthcheck。
+- `docker-compose.yml`：transcriber 改用 `env_file: .env`（選用，缺檔不報錯），並為 n8n 加入 healthcheck。
 - `transcription-service/Dockerfile`：複製 `README.md` 以符合 `pyproject.toml` 的 `readme` 宣告。
+- 將 `youtube-transcript-api` 釘選為 `>=1.0,<2`（程式使用 1.x 實例 API，與 0.6.x 不相容）。
 
 ## [0.1.0] — 初始骨架
 
