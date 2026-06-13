@@ -7,7 +7,7 @@ RUN apt-get update \
 
 WORKDIR /srv
 
-COPY pyproject.toml ./
+COPY pyproject.toml README.md ./
 COPY app ./app
 
 RUN pip install --no-cache-dir .

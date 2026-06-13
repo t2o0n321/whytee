@@ -1,0 +1,38 @@
+# 縮小建置上下文，避免將祕密與本機資料送進映像。
+.git
+.gitignore
+.env
+*.local
+
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Whisper 模型快取與下載音訊
+*.wav
+*.mp3
+/tmp/transcriber/
+models/
+
+# n8n / db 本機資料
+n8n_data/
+db_data/
+
+# 文件與研究報告（非執行所需）
+docs/
+*.pdf
+*.md
+!transcription-service/README.md
+
+.DS_Store
+.idea/
+.vscode/

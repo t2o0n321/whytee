@@ -45,10 +45,7 @@ def fetch_captions(video_id: str, languages: list[str]) -> tuple[str, list[Segme
         raise NoCaptionsError(f"no caption track matched {languages}")
 
     fetched = transcript.fetch()
-    segments = [
-        Segment(start=s.start, duration=s.duration, text=s.text)
-        for s in fetched
-    ]
+    segments = [Segment(start=s.start, duration=s.duration, text=s.text) for s in fetched]
     return transcript.language_code, segments
 
 

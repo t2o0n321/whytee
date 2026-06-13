@@ -44,9 +44,11 @@ YouTube ──(WebSub / Data API)──> n8n（總指揮 / 編排引擎）
    下載最佳音訊、`ffmpeg` 切割為 ≤15 分鐘區塊（規避 25MB／API 限制），再以
    `faster-whisper` 本地轉錄並依時間偏移拼接。
 
-> **為何採用 faster-whisper**：PDF 提及的 MLX 僅限 Apple Silicon、雲端 Whisper
+> **為何預設 faster-whisper**：PDF 提及的 MLX 僅限 Apple Silicon、雲端 Whisper
 > 需付費金鑰；`faster-whisper` 可跨平台於 CPU/GPU 執行，無需密鑰即可驗證骨架。
-> 雲端 Whisper（Groq/OpenRouter）與 MLX 在 `docs/api.md` 列為同介面替代供應器。
+> 第二層後端以相同 `transcribe_chunks` 介面實作，可透過 `TRANSCRIBER_STT_BACKEND`
+> 在 `local`（faster-whisper）與 `cloud`（OpenAI 相容端點，如 Groq/OpenRouter）間
+> 切換；MLX 等仍列為後續工作。詳見 `docs/api.md`。
 
 詳細 REST 契約見 [`docs/api.md`](./api.md)。
 

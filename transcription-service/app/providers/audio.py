@@ -34,9 +34,7 @@ def download_audio(video_id: str, dest_dir: str) -> str:
         "outtmpl": out_template,
         "quiet": True,
         "no_warnings": True,
-        "postprocessors": [
-            {"key": "FFmpegExtractAudio", "preferredcodec": "wav"}
-        ],
+        "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "wav"}],
     }
     proxy_url = get_ytdlp_proxy_url()
     if proxy_url:
@@ -59,10 +57,20 @@ def split_audio(wav_path: str, chunk_seconds: int | None = None) -> list[AudioCh
 
     subprocess.run(
         [
-            "ffmpeg", "-i", wav_path,
-            "-f", "segment", "-segment_time", str(chunk_seconds),
-            "-c", "copy", "-reset_timestamps", "1", pattern,
-            "-loglevel", "error",
+            "ffmpeg",
+            "-i",
+            wav_path,
+            "-f",
+            "segment",
+            "-segment_time",
+            str(chunk_seconds),
+            "-c",
+            "copy",
+            "-reset_timestamps",
+            "1",
+            pattern,
+            "-loglevel",
+            "error",
         ],
         check=True,
     )

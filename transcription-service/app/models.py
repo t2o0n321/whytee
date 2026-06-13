@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 class TranscriptSource(str, Enum):
     """Which tier of the fallback chain produced the transcript."""
 
-    captions = "captions"          # tier 1: youtube-transcript-api
+    captions = "captions"  # tier 1: youtube-transcript-api
     whisper_local = "whisper_local"  # tier 2: yt-dlp + faster-whisper
 
 
@@ -31,7 +31,7 @@ class TranscribeRequest(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _require_identifier(self) -> "TranscribeRequest":
+    def _require_identifier(self) -> TranscribeRequest:
         if not self.video_id and not self.url:
             raise ValueError("one of `video_id` or `url` is required")
         return self

@@ -6,15 +6,27 @@
 
 ## `GET /health`
 
-存活檢查。回傳：
+存活檢查（liveness）。回傳：
 
 ```json
 {
   "status": "ok",
   "version": "0.1.0",
   "default_languages": ["zh-TW", "zh-Hant", "zh", "en"],
-  "whisper_model": "base"
+  "whisper_model": "base",
+  "stt_backend": "local"
 }
+```
+
+每個回應都附帶 `X-Request-ID` 標頭；可由請求端帶入同名標頭以串接 n8n 的日誌追蹤。
+
+## `GET /ready`
+
+就緒檢查（readiness）。檢查第二層 STT 後端是否可用：`local` 一律就緒（模型於首次
+音訊請求時延遲載入）；`cloud` 需設定 `TRANSCRIBER_CLOUD_STT_API_KEY`，否則回 `503`。
+
+```json
+{ "ready": true, "stt_backend": "local", "detail": "ok" }
 ```
 
 ## `POST /transcribe`
@@ -69,17 +81,28 @@
 | 變數 | 預設 | 說明 |
 | --- | --- | --- |
 | `TRANSCRIBER_DEFAULT_LANGUAGES` | `["zh-TW","zh-Hant","zh","en"]` | 預設語言優先順序。 |
-| `TRANSCRIBER_WHISPER_MODEL` | `base` | faster-whisper 模型大小。 |
+| `TRANSCRIBER_STT_BACKEND` | `local` | 第二層後端：`local`（faster-whisper）或 `cloud`。 |
+| `TRANSCRIBER_WHISPER_MODEL` | `base` | local 後端 faster-whisper 模型大小。 |
 | `TRANSCRIBER_WHISPER_DEVICE` | `auto` | `auto`／`cpu`／`cuda`。 |
+| `TRANSCRIBER_CLOUD_STT_BASE_URL` | `https://api.groq.com/openai/v1` | cloud 後端 OpenAI 相容端點。 |
+| `TRANSCRIBER_CLOUD_STT_MODEL` | `whisper-large-v3` | cloud 後端模型。 |
+| `TRANSCRIBER_CLOUD_STT_API_KEY` | （空） | cloud 後端金鑰；空值時 `/ready` 回 503。 |
 | `TRANSCRIBER_AUDIO_CHUNK_SECONDS` | `900` | 音訊分塊秒數（15 分鐘）。 |
 | `TRANSCRIBER_REQUEST_DELAY_SECONDS` | `60` | 建議的請求間延遲（由 n8n Wait 節點執行）。 |
 | `TRANSCRIBER_WEBSHARE_PROXY_USERNAME` | （空） | Webshare 住宅代理帳號，空值停用代理。 |
 | `TRANSCRIBER_WEBSHARE_PROXY_PASSWORD` | （空） | Webshare 住宅代理密碼。 |
 
-## 同介面替代供應器（後續工作）
+## 同介面替代供應器
 
-第二層 STT 可在 `app/providers/` 下以相同 `transcribe_chunks` 介面替換：
+第二層 STT 在 `app/providers/` 下以相同 `transcribe_chunks` 介面實作，由
+`TRANSCRIBER_STT_BACKEND` 切換：
 
-- **雲端 Whisper**（Groq / OpenRouter）：規避本地算力需求。
+- **本地 faster-whisper**（`local`，預設）：跨平台、免金鑰，於 CPU/GPU 執行。
+  實作於 `app/providers/whisper_local.py`。
+- **雲端 Whisper**（`cloud`）：OpenAI 相容端點（Groq／OpenRouter／OpenAI），
+  規避本地算力需求。實作於 `app/providers/whisper_cloud.py`。
+
+尚可依相同介面擴充（後續工作）：
+
 - **Apple MLX Whisper**：Apple Silicon 上的高速本地轉錄。
 - **ElevenLabs Scribe**：99+ 語言、高噪音環境準確度佳。

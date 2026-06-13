@@ -8,8 +8,11 @@ how it fits into the n8n / OpenRouter / Supabase / Telegram pipeline.
 
 1. `captions` — `youtube-transcript-api` (official / auto captions, with
    language-priority and auto-translate fallback).
-2. `whisper_local` — `yt-dlp` audio download + `ffmpeg` chunking + `faster-whisper`
-   local STT, used when no captions exist or `force_audio=true`.
+2. Audio STT — `yt-dlp` audio download + `ffmpeg` chunking, used when no captions
+   exist or `force_audio=true`. The STT backend is selectable via
+   `TRANSCRIBER_STT_BACKEND`:
+   - `local` (default) — `faster-whisper`, cross-platform, no API key.
+   - `cloud` — an OpenAI-compatible Whisper endpoint (Groq / OpenRouter / OpenAI).
 
 ## Local development
 
