@@ -14,16 +14,22 @@ import re
 
 from app.config import get_settings
 from app.models import Segment, TranscribeResponse, TranscriptSource
-from app.providers import audio, captions, whisper_cloud, whisper_local
+from app.providers import audio, captions, elevenlabs, whisper_cloud, whisper_local, whisper_mlx
 
 _VIDEO_ID_RE = re.compile(r"(?:v=|/shorts/|/embed/|youtu\.be/)([0-9A-Za-z_-]{11})")
+
+# Tier-2 backends, each exposing ``transcribe_chunks`` and a ``SOURCE`` constant.
+_STT_BACKENDS = {
+    "local": whisper_local,
+    "cloud": whisper_cloud,
+    "elevenlabs": elevenlabs,
+    "mlx": whisper_mlx,
+}
 
 
 def _stt_backend():
     """Return the configured tier-2 STT module (same ``transcribe_chunks`` API)."""
-    if get_settings().stt_backend == "cloud":
-        return whisper_cloud
-    return whisper_local
+    return _STT_BACKENDS.get(get_settings().stt_backend, whisper_local)
 
 
 def extract_video_id(video_id: str | None, url: str | None) -> str:
@@ -77,16 +83,15 @@ def transcribe(
         except captions.NoCaptionsError:
             pass  # fall through to audio tier
 
-    # Tier 2: audio download + Whisper STT (local faster-whisper or cloud).
+    # Tier 2: audio download + the configured Whisper/STT backend.
+    backend = _stt_backend()
     wav_path = audio.download_audio(vid, settings.work_dir)
     chunks = audio.split_audio(wav_path)
-    language, segments = _stt_backend().transcribe_chunks(
-        chunks, language=langs[0] if langs else None
-    )
+    language, segments = backend.transcribe_chunks(chunks, language=langs[0] if langs else None)
     return TranscribeResponse(
         video_id=vid,
         language=language,
-        source=TranscriptSource.whisper_local,
+        source=getattr(backend, "SOURCE", TranscriptSource.whisper_local),
         segments=segments,
         text=_join_text(segments),
         duration_s=_total_duration(segments),

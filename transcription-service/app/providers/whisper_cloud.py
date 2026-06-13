@@ -16,8 +16,10 @@ the local backend.
 from __future__ import annotations
 
 from app.config import get_settings
-from app.models import Segment
+from app.models import Segment, TranscriptSource
 from app.providers.audio import AudioChunk
+
+SOURCE = TranscriptSource.whisper_cloud
 
 
 class CloudSTTError(Exception):

@@ -50,8 +50,22 @@ LLM 必須以嚴格 JSON 回傳：
 | 2 | Code（Render MarkdownV2） | 渲染富文本並**跳脫 MarkdownV2 特殊字元**，避免 `400 Bad Request: can't parse entities`。 |
 | 3 | Telegram Send Message | 推播摘要 + Inline Keyboard（展開逐字稿／查詢歷史）。 |
 
-## 雙向對話（Agentic RAG，待擴充）
+## 工作流四：雙向對話（Agentic RAG Chat）
 
-以 Telegram Trigger 監聽使用者訊息，先經白名單授權，再以 PostgreSQL Chat
-Memory 維持上下文、Supabase RAG 檢索歷史切片，最後由 OpenRouter 高階模型綜合
-推理並回覆。骨架未含此流程，列為後續工作（見 README 的「未涵蓋範圍」）。
+檔案：`04-agentic-rag-chat.json` ｜ 事件驅動（Telegram 訊息）。
+
+| 步驟 | 節點 | 說明 |
+| --- | --- | --- |
+| 1 | Telegram Trigger | 監聽使用者傳入訊息。 |
+| 2 | Filter（白名單授權） | 比對 `chat.id` 是否在 `TELEGRAM_ALLOWED_CHAT_IDS`；未授權即丟棄（security.md §3）。 |
+| 3 | AI Agent | 代理推理核心，串接以下三個 sub-node。 |
+| 3a | OpenRouter Chat Model（deep） | 以 `ai_languageModel` 連入，負責綜合推理。 |
+| 3b | Postgres Chat Memory | 以 `ai_memory` 連入，依 `chat.id` 將對話寫入 `chat_history` 表，維持長期上下文。 |
+| 3c | Supabase（Retrieve as Tool） | 以 `ai_tool` 連入，代理自主以 `search_corpus` 工具語意檢索歷史語料。 |
+| 4 | Telegram - Reply | 將代理回覆送回原對話。 |
+
+> Retrieve-as-Tool 讓代理自行決定何時查閱知識庫；跨時間綜合分析（演進／矛盾）
+> 由 system message 指示模型完成，並要求引用所用的 `video_id`。
+
+匯入後需指派 Telegram、OpenRouter（OpenAI 憑證 Base URL 覆寫）與 Supabase／Postgres
+憑證，並設定 `TELEGRAM_ALLOWED_CHAT_IDS`。

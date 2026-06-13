@@ -78,6 +78,8 @@ YouTube ──(WebSub / Data API)──> n8n（總指揮 / 編排引擎）
 1. **歷史語料回溯與向量化** — 批次回補頻道歷史影片並建立向量知識庫。
 2. **即時監控 + GEO 深度分析** — WebSub 事件驅動，結合 RAG 進行跨時間脈絡分析。
 3. **格式化與推播** — 將 GEO JSON 渲染為 Telegram MarkdownV2 並推播。
+4. **Agentic RAG 雙向對話** — Telegram 訊息觸發，白名單授權後由 AI Agent 結合
+   Postgres Chat Memory 與 Supabase Retrieve-as-Tool 進行跨時間問答。
 
 ## 7. 安全與部署
 

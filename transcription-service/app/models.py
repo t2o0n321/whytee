@@ -10,10 +10,13 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class TranscriptSource(str, Enum):
-    """Which tier of the fallback chain produced the transcript."""
+    """Which tier / backend of the fallback chain produced the transcript."""
 
     captions = "captions"  # tier 1: youtube-transcript-api
     whisper_local = "whisper_local"  # tier 2: yt-dlp + faster-whisper
+    whisper_cloud = "whisper_cloud"  # tier 2: OpenAI-compatible cloud Whisper
+    elevenlabs = "elevenlabs"  # tier 2: ElevenLabs Scribe
+    mlx = "mlx"  # tier 2: Apple MLX Whisper
 
 
 class TranscribeRequest(BaseModel):

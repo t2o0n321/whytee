@@ -10,9 +10,11 @@ how it fits into the n8n / OpenRouter / Supabase / Telegram pipeline.
    language-priority and auto-translate fallback).
 2. Audio STT — `yt-dlp` audio download + `ffmpeg` chunking, used when no captions
    exist or `force_audio=true`. The STT backend is selectable via
-   `TRANSCRIBER_STT_BACKEND`:
+   `TRANSCRIBER_STT_BACKEND` (the response `source` reflects which ran):
    - `local` (default) — `faster-whisper`, cross-platform, no API key.
    - `cloud` — an OpenAI-compatible Whisper endpoint (Groq / OpenRouter / OpenAI).
+   - `elevenlabs` — ElevenLabs Scribe speech-to-text.
+   - `mlx` — Apple MLX Whisper (Apple Silicon; needs the optional `mlx-whisper`).
 
 ## Local development
 

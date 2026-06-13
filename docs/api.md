@@ -106,14 +106,13 @@
 ## 同介面替代供應器
 
 第二層 STT 在 `app/providers/` 下以相同 `transcribe_chunks` 介面實作，由
-`TRANSCRIBER_STT_BACKEND` 切換：
+`TRANSCRIBER_STT_BACKEND` 切換，回應 `source` 欄位反映所用後端：
 
-- **本地 faster-whisper**（`local`，預設）：跨平台、免金鑰，於 CPU/GPU 執行。
-  實作於 `app/providers/whisper_local.py`。
-- **雲端 Whisper**（`cloud`）：OpenAI 相容端點（Groq／OpenRouter／OpenAI），
-  規避本地算力需求。實作於 `app/providers/whisper_cloud.py`。
+| `STT_BACKEND` | 後端 | 實作 | 需求 |
+| --- | --- | --- | --- |
+| `local`（預設） | 本地 faster-whisper，跨平台免金鑰 | `whisper_local.py` | `ffmpeg` |
+| `cloud` | OpenAI 相容雲端 Whisper（Groq／OpenRouter／OpenAI） | `whisper_cloud.py` | `CLOUD_STT_API_KEY` |
+| `elevenlabs` | ElevenLabs Scribe，99+ 語言、抗噪佳 | `elevenlabs.py` | `ELEVENLABS_API_KEY` |
+| `mlx` | Apple MLX Whisper，Apple Silicon 高速本地 | `whisper_mlx.py` | `mlx-whisper` 套件 |
 
-尚可依相同介面擴充（後續工作）：
-
-- **Apple MLX Whisper**：Apple Silicon 上的高速本地轉錄。
-- **ElevenLabs Scribe**：99+ 語言、高噪音環境準確度佳。
+`/ready` 會依所選後端檢查必要金鑰／套件是否就緒，未就緒回 `503`。

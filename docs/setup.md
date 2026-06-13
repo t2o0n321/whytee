@@ -66,12 +66,15 @@ make down           # 停止
 | 變數 | 預設 | 說明 |
 | --- | --- | --- |
 | `TRANSCRIBER_DEFAULT_LANGUAGES` | `["zh-TW","zh-Hant","zh","en"]` | 語言優先順序。 |
-| `TRANSCRIBER_STT_BACKEND` | `local` | 第二層後端：`local`（faster-whisper）或 `cloud`。 |
+| `TRANSCRIBER_STT_BACKEND` | `local` | 第二層後端：`local`／`cloud`／`elevenlabs`／`mlx`。 |
 | `TRANSCRIBER_WHISPER_MODEL` | `base` | local 後端模型大小。 |
 | `TRANSCRIBER_WHISPER_DEVICE` | `auto` | `auto`／`cpu`／`cuda`。 |
 | `TRANSCRIBER_CLOUD_STT_BASE_URL` | Groq | cloud 後端 OpenAI 相容端點。 |
 | `TRANSCRIBER_CLOUD_STT_MODEL` | `whisper-large-v3` | cloud 後端模型。 |
 | `TRANSCRIBER_CLOUD_STT_API_KEY` | （空） | cloud 後端金鑰；空值時 `/ready` 回 503。 |
+| `TRANSCRIBER_ELEVENLABS_API_KEY` | （空） | elevenlabs 後端金鑰。 |
+| `TRANSCRIBER_ELEVENLABS_MODEL` | `scribe_v1` | ElevenLabs Scribe 模型。 |
+| `TRANSCRIBER_MLX_MODEL` | `whisper-large-v3-mlx` | mlx 後端模型（需 `mlx-whisper`，Apple Silicon）。 |
 | `TRANSCRIBER_AUDIO_CHUNK_SECONDS` | `900` | 音訊分塊秒數。 |
 | `TRANSCRIBER_WEBSHARE_PROXY_USERNAME` | （空） | 住宅代理帳號。 |
 | `TRANSCRIBER_WEBSHARE_PROXY_PASSWORD` | （空） | 住宅代理密碼。 |
@@ -92,7 +95,7 @@ TRANSCRIBER_CLOUD_STT_API_KEY=gsk_...
 1. 開啟 n8n（<http://localhost:5678>），建立管理者帳號。
 2. **匯入**：左側選單 → *Workflows* → *Import from File*，逐一匯入
    `n8n/workflows/01-historical-backfill.json`、`02-realtime-geo-analysis.json`、
-   `03-format-and-deliver.json`。
+   `03-format-and-deliver.json`、`04-agentic-rag-chat.json`。
 3. **建立 Credentials**（*Credentials* → *Add Credential*）：
    - **YouTube Data API**：HTTP Query Auth 或在節點以 `={{ $env.YOUTUBE_API_KEY }}` 帶入。
    - **OpenRouter**：n8n 1.78+ 用原生 OpenRouter 節點；舊版用「OpenAI」憑證，
@@ -113,6 +116,8 @@ TRANSCRIBER_CLOUD_STT_API_KEY=gsk_...
 2. n8n 手動執行工作流一，挑選一個頻道做小批次回溯，確認 `transcripts` 與
    `embeddings` 表有資料寫入。
 3. 對監聽中的頻道發布測試影片（或重送 WebSub），確認工作流二觸發並推播 Telegram。
+4. 從白名單內的 Telegram 帳號向 Bot 發問，確認工作流四回覆並引用歷史 `video_id`；
+   以非白名單帳號發問應被靜默丟棄。
 
 ## 7. 疑難排解
 

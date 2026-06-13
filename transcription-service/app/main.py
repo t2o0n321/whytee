@@ -6,6 +6,7 @@ The service is stateless; rate-limiting / scheduling is owned by n8n.
 
 from __future__ import annotations
 
+import importlib.util
 import logging
 import time
 import uuid
@@ -87,10 +88,17 @@ def ready() -> JSONResponse:
     settings = get_settings()
     ready = True
     detail = "ok"
-    if settings.stt_backend == "cloud" and not settings.cloud_stt_api_key:
+    backend = settings.stt_backend
+    if backend == "cloud" and not settings.cloud_stt_api_key:
         ready = False
         detail = "stt_backend=cloud but TRANSCRIBER_CLOUD_STT_API_KEY is empty"
-    body = {"ready": ready, "stt_backend": settings.stt_backend, "detail": detail}
+    elif backend == "elevenlabs" and not settings.elevenlabs_api_key:
+        ready = False
+        detail = "stt_backend=elevenlabs but TRANSCRIBER_ELEVENLABS_API_KEY is empty"
+    elif backend == "mlx" and importlib.util.find_spec("mlx_whisper") is None:
+        ready = False
+        detail = "stt_backend=mlx but the 'mlx-whisper' package is not installed"
+    body = {"ready": ready, "stt_backend": backend, "detail": detail}
     return JSONResponse(status_code=200 if ready else 503, content=body)
 
 

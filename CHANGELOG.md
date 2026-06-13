@@ -15,6 +15,11 @@
 - `docs/setup.md`（部署與 n8n 憑證接線逐步說明、疑難排解）與 `docs/README.md` 文件索引。
 - 逐字稿微服務：FastAPI 端點測試、結構化日誌與 request id、`/ready` 就緒探測。
 - 第二層 STT 新增雲端 Whisper 供應器（OpenRouter／Groq，OpenAI 相容），以環境變數啟用。
+- 第二層 STT 再新增 ElevenLabs Scribe 與 Apple MLX 供應器（同 `transcribe_chunks` 介面）；
+  `TRANSCRIBER_STT_BACKEND` 可選 `local`／`cloud`／`elevenlabs`／`mlx`，回應 `source` 反映後端，
+  `/ready` 依後端檢查金鑰／套件就緒。
+- 第四個 n8n 工作流 `04-agentic-rag-chat.json`：Telegram 觸發 → 白名單授權 →
+  AI Agent（OpenRouter deep + Postgres Chat Memory + Supabase Retrieve-as-Tool）→ 回覆。
 
 - 韌性：字幕供應器將 YouTube 封鎖（403／410／IP block）對應為
   `TranscriptBlockedError`，附住宅代理與限速指引；服務啟動時若未設定代理會記錄警告。

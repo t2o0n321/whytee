@@ -30,16 +30,28 @@ class Settings(BaseSettings):
     whisper_device: str = "auto"  # auto | cpu | cuda
     whisper_compute_type: str = "int8"  # int8 keeps CPU memory low
 
-    # Tier-2 STT backend: "local" (faster-whisper) or "cloud" (OpenAI-compatible
-    # Whisper endpoint, e.g. Groq / OpenRouter / OpenAI). Both expose the same
-    # provider interface so the orchestrator stays backend-agnostic.
-    stt_backend: str = "local"  # local | cloud
+    # Tier-2 STT backend. All backends expose the same ``transcribe_chunks``
+    # interface so the orchestrator stays backend-agnostic:
+    #   local       faster-whisper (default, no key, cross-platform)
+    #   cloud       OpenAI-compatible Whisper endpoint (Groq / OpenRouter / OpenAI)
+    #   elevenlabs  ElevenLabs Scribe speech-to-text
+    #   mlx         Apple MLX Whisper (Apple Silicon only)
+    stt_backend: str = "local"  # local | cloud | elevenlabs | mlx
 
     # Cloud Whisper (used when stt_backend="cloud"). OpenAI-compatible
     # /audio/transcriptions endpoint. Empty api key disables the cloud backend.
     cloud_stt_base_url: str = "https://api.groq.com/openai/v1"
     cloud_stt_model: str = "whisper-large-v3"
     cloud_stt_api_key: str = ""
+
+    # ElevenLabs Scribe (used when stt_backend="elevenlabs").
+    elevenlabs_base_url: str = "https://api.elevenlabs.io/v1"
+    elevenlabs_model: str = "scribe_v1"
+    elevenlabs_api_key: str = ""
+
+    # Apple MLX Whisper (used when stt_backend="mlx"). Requires the optional
+    # `mlx-whisper` package on Apple Silicon; the repo string names the model.
+    mlx_model: str = "mlx-community/whisper-large-v3-mlx"
 
     # Audio handling: chunk long audio below the typical 25MB / 15-min STT limit.
     audio_chunk_seconds: int = 900  # 15 minutes

@@ -11,8 +11,10 @@ from __future__ import annotations
 from functools import lru_cache
 
 from app.config import get_settings
-from app.models import Segment
+from app.models import Segment, TranscriptSource
 from app.providers.audio import AudioChunk
+
+SOURCE = TranscriptSource.whisper_local
 
 
 @lru_cache
