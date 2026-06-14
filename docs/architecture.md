@@ -1,7 +1,8 @@
 # 系統架構設計：智慧化 YouTube 頻道自動追蹤與歷史語料分析
 
 > 本文件為設計依據（design of record），整理自研究報告
-> `YouTube逐字稿開源專案與n8n.pdf`，描述端到端架構與各元件職責。
+> [`reference/YouTube逐字稿開源專案與n8n.pdf`](reference/YouTube逐字稿開源專案與n8n.pdf)，
+> 描述端到端架構與各元件職責。
 
 ## 1. 目標與核心價值
 

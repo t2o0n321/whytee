@@ -4,7 +4,7 @@
 YouTube 頻道、轉錄每支影片、將歷史語料向量化為 RAG 知識庫，並透過 Telegram
 進行跨時間軸的「觀點演進」分析與雙向問答。
 
-> 完整設計依據整理自研究報告 `YouTube逐字稿開源專案與n8n.pdf`。
+> 完整設計依據整理自研究報告 [`docs/reference/YouTube逐字稿開源專案與n8n.pdf`](docs/reference/YouTube逐字稿開源專案與n8n.pdf)。
 
 ## 架構總覽
 
@@ -27,9 +27,10 @@ whytee/
 │   ├── README.md            # 文件索引
 │   ├── setup.md             # 安裝、部署與 n8n 接線逐步指南 + 疑難排解
 │   ├── architecture.md      # 系統架構
-│   ├── workflows.md         # 三個 n8n 工作流規格
+│   ├── workflows.md         # 四個 n8n 工作流規格
 │   ├── api.md               # 逐字稿微服務 REST 契約
-│   └── security.md          # 資安與部署防護
+│   ├── security.md          # 資安與部署防護
+│   └── reference/           # 原始研究報告 PDF（設計依據）
 ├── transcription-service/   # 主程式：階層式降級轉錄微服務（Python/FastAPI）
 ├── supabase/schema.sql      # PostgreSQL + pgvector 結構與 RAG 檢索函式
 ├── n8n/workflows/*.json     # 四個可匯入的 n8n 工作流骨架
