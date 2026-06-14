@@ -4,6 +4,9 @@
 
 服務為無狀態（stateless），排程與限速由 n8n 負責。
 
+**認證（選用）**：若設定 `TRANSCRIBER_API_KEY`，`/transcribe` 與 `/transcribe/batch`
+需帶 `Authorization: Bearer <金鑰>`，否則回 `401`。`/health`、`/ready` 不需認證。
+
 ## `GET /health`
 
 存活檢查（liveness）。回傳：
@@ -86,6 +89,9 @@
 ```
 
 回應 `{ "results": [...], "errors": [{ "request": {...}, "error": "..." }] }`。
+
+單批筆數上限為 `TRANSCRIBER_BATCH_MAX_ITEMS`（預設 50），超過回 `400`。回溯仍建議
+走工作流一的逐筆 `/transcribe` 迴圈（含 Wait 限速），而非單一大批次。
 
 ## 設定（環境變數，前綴 `TRANSCRIBER_`）
 

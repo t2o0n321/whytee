@@ -86,8 +86,12 @@ def transcribe(
     # Tier 2: audio download + the configured Whisper/STT backend.
     backend = _stt_backend()
     wav_path = audio.download_audio(vid, settings.work_dir)
-    chunks = audio.split_audio(wav_path)
-    language, segments = backend.transcribe_chunks(chunks, language=langs[0] if langs else None)
+    try:
+        chunks = audio.split_audio(wav_path)
+        language, segments = backend.transcribe_chunks(chunks, language=langs[0] if langs else None)
+    finally:
+        # Always reclaim disk, even if STT raises.
+        audio.cleanup_video(settings.work_dir, vid)
     return TranscribeResponse(
         video_id=vid,
         language=language,

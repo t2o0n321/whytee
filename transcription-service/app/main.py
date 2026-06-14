@@ -11,7 +11,7 @@ import logging
 import time
 import uuid
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from app import __version__
@@ -41,6 +41,19 @@ app = FastAPI(
     version=__version__,
     summary="Tiered-fallback transcription (captions -> Whisper) for n8n.",
 )
+
+
+def require_api_key(authorization: str | None = Header(default=None)) -> None:
+    """Optional bearer-token gate for the transcribe endpoints.
+
+    No-op when ``TRANSCRIBER_API_KEY`` is unset (back-compatible). When set,
+    requests must send ``Authorization: Bearer <key>`` or get a 401.
+    """
+    api_key = get_settings().api_key
+    if not api_key:
+        return
+    if authorization != f"Bearer {api_key}":
+        raise HTTPException(status_code=401, detail="invalid or missing API key")
 
 
 @app.middleware("http")
@@ -102,7 +115,11 @@ def ready() -> JSONResponse:
     return JSONResponse(status_code=200 if ready else 503, content=body)
 
 
-@app.post("/transcribe", response_model=TranscribeResponse)
+@app.post(
+    "/transcribe",
+    response_model=TranscribeResponse,
+    dependencies=[Depends(require_api_key)],
+)
 def transcribe_endpoint(req: TranscribeRequest) -> TranscribeResponse:
     try:
         return transcribe(
@@ -118,13 +135,24 @@ def transcribe_endpoint(req: TranscribeRequest) -> TranscribeResponse:
         raise HTTPException(status_code=502, detail=f"transcription failed: {exc}") from exc
 
 
-@app.post("/transcribe/batch", response_model=BatchTranscribeResponse)
+@app.post(
+    "/transcribe/batch",
+    response_model=BatchTranscribeResponse,
+    dependencies=[Depends(require_api_key)],
+)
 def transcribe_batch_endpoint(req: BatchTranscribeRequest) -> BatchTranscribeResponse:
     """Sequential batch helper for the historical-backfill workflow.
 
     n8n is expected to enforce the inter-request delay; this endpoint simply
     iterates and collects per-item errors rather than failing the whole batch.
+    Capped at ``batch_max_items`` so a single request can't run unbounded work.
     """
+    max_items = get_settings().batch_max_items
+    if len(req.items) > max_items:
+        raise HTTPException(
+            status_code=400,
+            detail=f"batch too large: {len(req.items)} items > limit {max_items}",
+        )
     results: list[TranscribeResponse] = []
     errors: list[dict] = []
     for item in req.items:

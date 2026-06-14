@@ -7,39 +7,100 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [240, 300]
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "ch", "name": "channelId", "value": "={{ $env.YOUTUBE_CHANNEL_ID }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-channel",
+      "name": "Set Channel ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [380, 300],
+      "notes": "Set YOUTUBE_CHANNEL_ID in the environment, or hardcode the channel id here."
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/channels",
+        "sendQuery": true,
+        "queryParameters": { "parameters": [
+          { "name": "part", "value": "contentDetails" },
+          { "name": "id", "value": "={{ $json.channelId }}" },
+          { "name": "key", "value": "={{ $env.YOUTUBE_API_KEY }}" }
+        ] }
+      },
+      "id": "resolve-uploads",
+      "name": "Resolve Uploads Playlist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [560, 300],
+      "notes": "channels.list -> contentDetails.relatedPlaylists.uploads is the playlist of every upload."
+    },
+    {
+      "parameters": {
+        "assignments": { "assignments": [
+          { "id": "pl", "name": "uploadsPlaylistId", "value": "={{ $json.items[0].contentDetails.relatedPlaylists.uploads }}", "type": "string" }
+        ] },
+        "options": {}
+      },
+      "id": "set-playlist",
+      "name": "Set Uploads Playlist Id",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [740, 300]
     },
     {
       "parameters": {
         "url": "https://www.googleapis.com/youtube/v3/playlistItems",
         "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            { "name": "part", "value": "snippet,contentDetails" },
-            { "name": "playlistId", "value": "={{ $json.uploadsPlaylistId }}" },
-            { "name": "maxResults", "value": "50" },
-            { "name": "pageToken", "value": "={{ $json.nextPageToken || '' }}" },
-            { "name": "key", "value": "={{ $env.YOUTUBE_API_KEY }}" }
-          ]
-        }
+        "queryParameters": { "parameters": [
+          { "name": "part", "value": "snippet,contentDetails" },
+          { "name": "playlistId", "value": "={{ $json.uploadsPlaylistId }}" },
+          { "name": "maxResults", "value": "50" },
+          { "name": "key", "value": "={{ $env.YOUTUBE_API_KEY }}" }
+        ] },
+        "options": { "pagination": { "pagination": {
+          "parameters": { "parameters": [
+            { "name": "pageToken", "value": "={{ $response.body.nextPageToken }}" }
+          ] },
+          "paginationCompleteWhen": "other",
+          "completeExpression": "={{ $response.body.nextPageToken === undefined }}",
+          "limitPagesFetched": false
+        } } }
       },
       "id": "yt-list",
       "name": "YouTube Data API (paginate)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [460, 300],
-      "notes": "Loop on nextPageToken to pull every uploaded video id."
+      "position": [920, 300],
+      "notes": "Built-in pagination follows nextPageToken to pull every uploaded video."
     },
     {
       "parameters": {
-        "batchSize": 1,
+        "fieldToSplitOut": "items",
         "options": {}
       },
+      "id": "split-out",
+      "name": "Split Out Videos",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "notes": "Fan the page's items array into one item per video."
+    },
+    {
+      "parameters": { "batchSize": 1, "options": {} },
       "id": "loop",
       "name": "Loop Over Items (rate-limit)",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
-      "position": [680, 300]
+      "position": [1280, 300],
+      "notes": "batchSize 1 + the Wait node below = polite crawl. The 'loop' output (index 1) feeds processing; the tail loops back here."
     },
     {
       "parameters": {
@@ -53,18 +114,16 @@
       "name": "Transcription Microservice",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [900, 300]
+      "position": [1480, 380],
+      "notes": "If TRANSCRIBER_API_KEY is set, add an Authorization: Bearer header credential."
     },
     {
-      "parameters": {
-        "amount": 60,
-        "unit": "seconds"
-      },
+      "parameters": { "amount": 60, "unit": "seconds" },
       "id": "wait",
       "name": "Wait 60s (polite crawl)",
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
-      "position": [1120, 300]
+      "position": [1660, 380]
     },
     {
       "parameters": {
@@ -75,16 +134,37 @@
       "name": "Supabase Vector Store (Insert)",
       "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
       "typeVersion": 1,
-      "position": [1340, 300],
-      "notes": "Chunk -> embed via OpenRouter -> insert into pgvector with metadata."
+      "position": [1840, 380],
+      "notes": "Chunk -> embed via the Embeddings sub-node -> insert into pgvector with metadata."
+    },
+    {
+      "parameters": {
+        "model": "={{ $env.OPENROUTER_EMBEDDING_MODEL }}",
+        "options": {}
+      },
+      "id": "embeddings",
+      "name": "Embeddings (OpenRouter)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [1840, 560],
+      "notes": "Model/dimension must match vector(1536) in schema.sql. Use an OpenAI credential with Base URL https://openrouter.ai/api/v1."
     }
   ],
   "connections": {
-    "Manual Trigger": { "main": [[{ "node": "YouTube Data API (paginate)", "type": "main", "index": 0 }]] },
-    "YouTube Data API (paginate)": { "main": [[{ "node": "Loop Over Items (rate-limit)", "type": "main", "index": 0 }]] },
-    "Loop Over Items (rate-limit)": { "main": [[{ "node": "Transcription Microservice", "type": "main", "index": 0 }]] },
+    "Manual Trigger": { "main": [[{ "node": "Set Channel ID", "type": "main", "index": 0 }]] },
+    "Set Channel ID": { "main": [[{ "node": "Resolve Uploads Playlist", "type": "main", "index": 0 }]] },
+    "Resolve Uploads Playlist": { "main": [[{ "node": "Set Uploads Playlist Id", "type": "main", "index": 0 }]] },
+    "Set Uploads Playlist Id": { "main": [[{ "node": "YouTube Data API (paginate)", "type": "main", "index": 0 }]] },
+    "YouTube Data API (paginate)": { "main": [[{ "node": "Split Out Videos", "type": "main", "index": 0 }]] },
+    "Split Out Videos": { "main": [[{ "node": "Loop Over Items (rate-limit)", "type": "main", "index": 0 }]] },
+    "Loop Over Items (rate-limit)": { "main": [
+      [],
+      [{ "node": "Transcription Microservice", "type": "main", "index": 0 }]
+    ] },
     "Transcription Microservice": { "main": [[{ "node": "Wait 60s (polite crawl)", "type": "main", "index": 0 }]] },
-    "Wait 60s (polite crawl)": { "main": [[{ "node": "Supabase Vector Store (Insert)", "type": "main", "index": 0 }]] }
+    "Wait 60s (polite crawl)": { "main": [[{ "node": "Supabase Vector Store (Insert)", "type": "main", "index": 0 }]] },
+    "Supabase Vector Store (Insert)": { "main": [[{ "node": "Loop Over Items (rate-limit)", "type": "main", "index": 0 }]] },
+    "Embeddings (OpenRouter)": { "ai_embedding": [[{ "node": "Supabase Vector Store (Insert)", "type": "ai_embedding", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" }
 }

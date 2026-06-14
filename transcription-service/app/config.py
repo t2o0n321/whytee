@@ -8,21 +8,44 @@ exposes for documentation and for standalone use.
 
 from __future__ import annotations
 
+import json
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_DEFAULT_LANGUAGES = ["zh-TW", "zh-Hant", "zh", "en"]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="TRANSCRIBER_",
-        env_file=".env",
+        # Look in the service dir first, then the repo root, so a single
+        # top-level .env works whether the service runs standalone or via compose.
+        env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore",
+        # Disable pydantic-settings' automatic JSON decoding of complex fields so
+        # a comma-separated TRANSCRIBER_DEFAULT_LANGUAGES doesn't crash boot; the
+        # validator below accepts both comma lists and JSON arrays.
+        enable_decoding=False,
     )
 
     # Language priority array tried in order before falling back to audio STT.
-    default_languages: list[str] = ["zh-TW", "zh-Hant", "zh", "en"]
+    default_languages: list[str] = _DEFAULT_LANGUAGES
+
+    @field_validator("default_languages", mode="before")
+    @classmethod
+    def _parse_languages(cls, v: object) -> object:
+        """Accept a Python list, a JSON array string, or a comma-separated string."""
+        if isinstance(v, str):
+            s = v.strip()
+            if not s:
+                return list(_DEFAULT_LANGUAGES)
+            if s.startswith("["):
+                return json.loads(s)
+            return [part.strip() for part in s.split(",") if part.strip()]
+        return v
 
     # faster-whisper model size: tiny | base | small | medium | large-v3.
     # "base" keeps the scaffold runnable on CPU without a GPU.
@@ -66,6 +89,14 @@ class Settings(BaseSettings):
 
     # Working directory for downloaded audio chunks.
     work_dir: str = "/tmp/transcriber"
+
+    # Optional bearer-token auth for the transcribe endpoints. Empty leaves the
+    # service open (back-compatible); set it to require `Authorization: Bearer`.
+    api_key: str = ""
+
+    # Safety cap on /transcribe/batch so one HTTP request can't run unbounded
+    # work (and time out n8n / reverse proxies). Backfill loops per-item anyway.
+    batch_max_items: int = 50
 
 
 @lru_cache

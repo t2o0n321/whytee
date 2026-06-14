@@ -1,8 +1,11 @@
 # n8n 工作流規格
 
-三個工作流的設計說明。可匯入骨架位於 [`n8n/workflows/`](../n8n/workflows/)。
-匯入後需在 n8n 中設定對應的 Credentials（YouTube、OpenRouter、Supabase、
-Telegram），骨架中以 `TODO` 與節點 notes 標示。
+四個工作流的設計說明。可匯入骨架位於 [`n8n/workflows/`](../n8n/workflows/)。
+匯入後需在 n8n 中設定對應的 Credentials（OpenRouter、Supabase、Telegram），並把
+Vector Store 節點連上 Embeddings 子節點；節點上以 `notes` 標示重點。
+
+> 這些是「可匯入、節點接線完整」的起始骨架；因無法在 CI 中以真實憑證執行，
+> 少數表達式映射（如 WebSub XML 路徑）請於 n8n UI 對照實際 payload 再微調。
 
 ## 工作流一：頻道歷史語料庫回溯（Historical Corpus Initialization）
 
@@ -11,11 +14,15 @@ Telegram），骨架中以 `TODO` 與節點 notes 標示。
 | 步驟 | 節點 | 說明 |
 | --- | --- | --- |
 | 1 | Manual Trigger | 手動觸發回溯。 |
-| 2 | YouTube Data API | 以 `playlistItems` 分頁（`nextPageToken`）拉取頻道所有影片 ID 與 metadata。 |
-| 3 | Loop Over Items | 分批處理，避免觸發反爬蟲。 |
-| 4 | 逐字稿微服務 | `POST /transcribe` 取得逐字稿。 |
-| 5 | Wait 60s | 禮貌性延遲（對應 YTScribe 預設 60 秒冷卻）。 |
-| 6 | Supabase Vector Store（Insert） | 文本分塊 → OpenRouter Embedding → 連同 metadata 寫入 pgvector。 |
+| 2 | Set Channel ID | 由 `YOUTUBE_CHANNEL_ID` 帶入頻道 id。 |
+| 3 | Resolve Uploads Playlist | `channels.list` 取得 `contentDetails.relatedPlaylists.uploads`。 |
+| 4 | Set Uploads Playlist Id | 萃取上傳清單 id。 |
+| 5 | YouTube Data API（paginate） | `playlistItems` + 內建分頁（`nextPageToken`）拉全部影片。 |
+| 6 | Split Out Videos | 將該頁 `items` 陣列展開為單筆。 |
+| 7 | Loop Over Items | `batchSize 1`；`loop` 輸出進處理鏈，尾端回接此節點（迴圈）。 |
+| 8 | 逐字稿微服務 | `POST /transcribe` 取得逐字稿。 |
+| 9 | Wait 60s | 禮貌性延遲（對應 YTScribe 預設 60 秒冷卻）。 |
+| 10 | Supabase Vector Store（Insert）＋Embeddings | 文本分塊 → Embedding → 連同 metadata 寫入 pgvector。 |
 
 ## 工作流二：即時監控 + GEO 深度分析（Real-time Update & Synthesis）
 
@@ -23,13 +30,16 @@ Telegram），骨架中以 `TODO` 與節點 notes 標示。
 
 | 步驟 | 節點 | 說明 |
 | --- | --- | --- |
-| 1 | WebSub Webhook | 透過 PubSubHubbub 訂閱頻道 RSS；新片發布時 YouTube 主動推送 XML。 |
-| 2 | 逐字稿微服務 | 取得新影片逐字稿。 |
-| 3 | OpenRouter（fast） | 以輕量模型萃取核心關鍵字與實體。 |
-| 4 | Supabase（Retrieve） | 以關鍵字為查詢向量，餘弦相似度檢索歷史語料 top-K。 |
-| 5 | OpenRouter（deep） | 強制 GEO 框架，回傳嚴格 JSON。 |
-| 6 | Supabase（Insert） | 新影片向量滾動寫入，持續更新知識庫。 |
-| 7 | Execute Workflow 03 | 交付推播子流程。 |
+| 1 | WebSub Webhook | 透過 PubSubHubbub 訂閱頻道 RSS；新片發布時 YouTube 推送 Atom XML（`rawBody`）。 |
+| 2 | Parse Atom XML | 將 Atom XML 轉 JSON。 |
+| 3 | Extract videoId | 取 `feed.entry['yt:videoId']`（UI 對照實際 payload 微調）。 |
+| 4 | 逐字稿微服務 | 取得新影片逐字稿。 |
+| 5 | OpenRouter（fast） | 以輕量模型萃取核心關鍵字作為查詢。 |
+| 6 | Supabase（Retrieve）＋Embeddings | 以關鍵字檢索歷史語料 top-K。 |
+| 7 | Aggregate Retrieved History | 將檢索片段彙整為單一 `history`。 |
+| 8 | OpenRouter（deep） | 逐字稿以 `$('Transcription Microservice')` 引用避免遺失；強制 GEO JSON。 |
+| 9 | Supabase（Insert）＋Embeddings | 新影片向量滾動寫入。 |
+| 10 | Execute Workflow 03 | 交付推播子流程。 |
 
 ### GEO 結構化分析框架
 

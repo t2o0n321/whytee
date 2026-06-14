@@ -38,26 +38,36 @@ whytee/
 └── .env.example             # 所有金鑰與設定範本
 ```
 
-## 快速開始
+## 快速開始（Docker，推薦）
 
-完整逐步說明（含 n8n 憑證接線與疑難排解）見 [`docs/setup.md`](docs/setup.md)。
+只需要 Docker + Docker Compose。完整逐步說明（含 n8n 憑證接線、代理與疑難排解）
+見 **[`docs/setup.md`](docs/setup.md)**。
 
 ```bash
-cp .env.example .env          # 填入各項金鑰
+git clone https://github.com/t2o0n321/whytee.git
+cd whytee
+cp .env.example .env          # 填入金鑰（至少 POSTGRES_PASSWORD 與各 API 金鑰）
 
-# 1) 逐字稿微服務（主程式）— 單元測試免網路／金鑰
-make install                  # cd transcription-service && pip install -e ".[dev]"（音訊層需 ffmpeg）
-make test                     # 單元測試
-make run                      # uvicorn，http://localhost:8000
-make smoke                    # curl /health
+docker compose up -d --build  # 建置並啟動 db + transcriber + n8n
+docker compose ps             # 三個服務應為 healthy
 
-# 2) 完整本機堆疊
-make up                       # docker compose up -d db transcriber n8n
-# 於 n8n UI 匯入 n8n/workflows/*.json 並設定 Credentials（見 docs/setup.md §5）
-# 資料庫結構由 docker-compose 於初始化時自動套用 supabase/schema.sql
+curl localhost:8000/health    # 逐字稿微服務存活檢查
+# 開 http://localhost:5678 → 匯入 n8n/workflows/*.json → 設定 Credentials
 ```
 
-> 不使用 Make 亦可：`cd transcription-service && pip install -e ".[dev]" && pytest`。
+資料庫結構（`supabase/schema.sql`）於 db 首次啟動時自動套用。
+
+> **提醒**：從伺服器 IP 直連 YouTube 常被 `403`／`410` 封鎖，請於 `.env` 設定
+> Webshare 住宅代理（見 [`docs/setup.md`](docs/setup.md) §6）。
+
+### 本機開發（僅逐字稿微服務）
+
+```bash
+make install   # pip install -e ".[dev]"（音訊層需 ffmpeg）
+make test      # 單元測試（免網路／金鑰）
+make lint      # ruff 檢查
+make run       # uvicorn，http://localhost:8000
+```
 
 ## 實作狀態
 

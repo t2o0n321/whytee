@@ -66,8 +66,9 @@ YouTube ──(WebSub / Data API)──> n8n（總指揮 / 編排引擎）
 
 - 底層 PostgreSQL + `pgvector`，關聯資料與向量統一管理。
 - 結構見 [`supabase/schema.sql`](../supabase/schema.sql)：`channels`、`videos`、
-  `transcripts`、`embeddings(vector(1536))`、`chat_history`，並提供
-  `match_documents` 餘弦相似度檢索函式供 n8n Supabase Vector Store 節點使用。
+  `transcripts`、`embeddings(vector(1536))`、`n8n_chat_histories`（對話記憶，欄位
+  對齊 n8n Postgres Chat Memory 節點），並提供 `match_documents` 餘弦相似度檢索
+  函式供 n8n Supabase Vector Store 節點使用。
 - 三種運作模式：Insert Documents（知識寫入）、Retrieve Documents（語意檢索）、
   Retrieve as Tool（AI 代理自主查閱）。
 

@@ -9,6 +9,7 @@ reconstructed deterministically.
 
 from __future__ import annotations
 
+import glob
 import os
 import subprocess
 from dataclasses import dataclass
@@ -53,11 +54,18 @@ def split_audio(wav_path: str, chunk_seconds: int | None = None) -> list[AudioCh
     """Split a wav into ≤``chunk_seconds`` pieces via ffmpeg segment muxer."""
     chunk_seconds = chunk_seconds or get_settings().audio_chunk_seconds
     base, _ = os.path.splitext(wav_path)
-    pattern = f"{base}_chunk_%03d.wav"
+    chunk_glob = f"{base}_chunk_*.wav"
 
+    # Remove any stale chunks from a previous run so we never stitch old audio
+    # back in (filenames are deterministic per video id).
+    for stale in glob.glob(chunk_glob):
+        os.remove(stale)
+
+    pattern = f"{base}_chunk_%03d.wav"
     subprocess.run(
         [
             "ffmpeg",
+            "-y",  # overwrite without prompting (subprocess has no stdin)
             "-i",
             wav_path,
             "-f",
@@ -75,14 +83,25 @@ def split_audio(wav_path: str, chunk_seconds: int | None = None) -> list[AudioCh
         check=True,
     )
 
-    chunks: list[AudioChunk] = []
-    idx = 0
-    while True:
-        path = f"{base}_chunk_{idx:03d}.wav"
-        if not os.path.exists(path):
-            break
-        chunks.append(AudioChunk(path=path, offset_s=idx * chunk_seconds))
-        idx += 1
+    # Glob + sort so we pick up exactly the chunks this run produced, in order.
+    paths = sorted(glob.glob(chunk_glob))
+    return [
+        AudioChunk(path=path, offset_s=index * chunk_seconds) for index, path in enumerate(paths)
+    ]
 
-    # Single-file (shorter than chunk size) case: ffmpeg still emits _chunk_000.
-    return chunks
+
+def cleanup_video(dest_dir: str, video_id: str) -> None:
+    """Remove the downloaded audio and all chunk files for ``video_id``.
+
+    Best-effort: keeps ``work_dir`` from growing unbounded across a backfill.
+    """
+    patterns = [
+        os.path.join(dest_dir, f"{video_id}.*"),
+        os.path.join(dest_dir, f"{video_id}_chunk_*.wav"),
+    ]
+    for pattern in patterns:
+        for path in glob.glob(pattern):
+            try:
+                os.remove(path)
+            except OSError:
+                pass

@@ -47,7 +47,7 @@ def transcribe_chunks(
             all_segments.append(
                 Segment(
                     start=chunk.offset_s + seg.start,
-                    duration=seg.end - seg.start,
+                    duration=max(0.0, seg.end - seg.start),
                     text=seg.text.strip(),
                 )
             )

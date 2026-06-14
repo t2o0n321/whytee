@@ -31,8 +31,8 @@ run: ## 本機啟動逐字稿微服務（熱重載）
 smoke: ## 對執行中的服務做一次健康檢查
 	curl -fsS localhost:8000/health && echo
 
-up: ## 啟動完整本機堆疊（db + transcriber + n8n）
-	docker compose up -d db transcriber n8n
+up: ## 建置並啟動完整本機堆疊（db + transcriber + n8n）
+	docker compose up -d --build
 
 down: ## 停止本機堆疊
 	docker compose down

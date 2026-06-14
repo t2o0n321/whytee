@@ -1,58 +1,78 @@
-# Local stack for the YouTube channel-analysis architecture.
+# Local / single-host stack for the YouTube channel-analysis architecture.
 #   db          PostgreSQL + pgvector (the Supabase storage layer)
 #   transcriber the tiered-fallback transcription microservice (this repo)
 #   n8n         workflow orchestrator
 #
 # Quick start:
-#   cp .env.example .env   # fill in keys
-#   docker compose up -d db transcriber n8n
-#   # then import n8n/workflows/*.json in the n8n UI and apply supabase/schema.sql
+#   cp .env.example .env          # fill in keys
+#   docker compose up -d --build  # build + start everything
+#   docker compose ps             # all services should become healthy
+#   # then open http://localhost:5678 and import n8n/workflows/*.json
+#
+# The database schema (supabase/schema.sql) is applied automatically the FIRST
+# time the db volume is created. To re-apply after edits: `docker compose down -v`.
+#
+# Internal services (db, transcriber) are bound to 127.0.0.1 so they are not
+# exposed publicly. n8n's UI is published on all interfaces for convenience —
+# put it behind an HTTPS reverse proxy (and enable auth) before exposing it.
 
 services:
   db:
     image: pgvector/pgvector:pg16
+    container_name: whytee-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: ${POSTGRES_DB:-whytee}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
       - ./supabase/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-whytee}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   transcriber:
-    build: ./transcription-service
-    # Load every TRANSCRIBER_* knob (and proxy/cloud-STT keys) from .env so the
-    # service sees the same config as a local `uvicorn` run. Optional so the
-    # stack still validates before the user has copied .env.example -> .env.
+    build:
+      context: ./transcription-service
+    image: whytee-transcriber
+    container_name: whytee-transcriber
+    restart: unless-stopped
+    # Load every TRANSCRIBER_* knob (proxy / cloud-STT / api-key) from .env so the
+    # container sees the same config as a local run. Optional so the stack still
+    # validates before the user has copied .env.example -> .env.
     env_file:
       - path: .env
         required: false
     environment:
+      # Explicit fallbacks for the common knobs (override via .env).
+      TRANSCRIBER_STT_BACKEND: ${TRANSCRIBER_STT_BACKEND:-local}
       TRANSCRIBER_WHISPER_MODEL: ${TRANSCRIBER_WHISPER_MODEL:-base}
       TRANSCRIBER_DEFAULT_LANGUAGES: ${TRANSCRIBER_DEFAULT_LANGUAGES:-}
       TRANSCRIBER_WEBSHARE_PROXY_USERNAME: ${WEBSHARE_PROXY_USERNAME:-}
       TRANSCRIBER_WEBSHARE_PROXY_PASSWORD: ${WEBSHARE_PROXY_PASSWORD:-}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)\""]
-      interval: 15s
+      interval: 30s
       timeout: 5s
       retries: 5
+      start_period: 20s
 
   n8n:
     image: n8nio/n8n:latest
+    container_name: whytee-n8n
+    restart: unless-stopped
     environment:
       N8N_HOST: ${N8N_HOST:-localhost}
       N8N_PORT: 5678
-      N8N_PROTOCOL: http
+      N8N_PROTOCOL: ${N8N_PROTOCOL:-http}
+      GENERIC_TIMEZONE: ${TZ:-UTC}
       # WebSub callbacks need a publicly reachable URL in production.
       WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
       DB_TYPE: postgresdb
@@ -65,6 +85,8 @@ services:
       - "5678:5678"
     depends_on:
       db:
+        condition: service_healthy
+      transcriber:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://localhost:5678/healthz || exit 1"]

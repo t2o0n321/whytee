@@ -66,7 +66,7 @@
       "parameters": {
         "sessionIdType": "customKey",
         "sessionKey": "={{ String($json.message.chat.id) }}",
-        "tableName": "chat_history",
+        "tableName": "n8n_chat_histories",
         "contextWindowLength": 12
       },
       "id": "memory",
@@ -89,7 +89,19 @@
       "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
       "typeVersion": 1,
       "position": [900, 540],
-      "notes": "Retrieve-as-Tool mode lets the agent decide when to query the knowledge base (architecture.md §5)."
+      "notes": "Retrieve-as-Tool mode lets the agent decide when to query the knowledge base (architecture.md §5). Needs an Embeddings sub-node (ai_embedding)."
+    },
+    {
+      "parameters": {
+        "model": "={{ $env.OPENROUTER_EMBEDDING_MODEL }}",
+        "options": {}
+      },
+      "id": "embeddings",
+      "name": "Embeddings (OpenRouter)",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [900, 740],
+      "notes": "Must match the model/dimension used at insert time (vector(1536) in schema.sql). Use an OpenAI credential with Base URL https://openrouter.ai/api/v1."
     },
     {
       "parameters": {
@@ -111,6 +123,7 @@
     "OpenRouter Chat Model (deep)": { "ai_languageModel": [[{ "node": "AI Agent", "type": "ai_languageModel", "index": 0 }]] },
     "Postgres Chat Memory": { "ai_memory": [[{ "node": "AI Agent", "type": "ai_memory", "index": 0 }]] },
     "Supabase Corpus (Retrieve as Tool)": { "ai_tool": [[{ "node": "AI Agent", "type": "ai_tool", "index": 0 }]] },
+    "Embeddings (OpenRouter)": { "ai_embedding": [[{ "node": "Supabase Corpus (Retrieve as Tool)", "type": "ai_embedding", "index": 0 }]] },
     "AI Agent": { "main": [[{ "node": "Telegram - Reply", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" }

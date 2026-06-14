@@ -5,7 +5,31 @@
 
 ## [Unreleased]
 
+### 修正（產品化 QA）
+- **開機崩潰**：`TRANSCRIBER_DEFAULT_LANGUAGES` 以逗號字串設定時不再 crash；新增
+  validator 同時接受逗號與 JSON 陣列。
+- **磁碟外洩 + 資料污染**：第二層音訊轉錄改在 `try/finally` 清理下載與分塊檔；
+  `split_audio` 先清除舊 chunk、ffmpeg 加 `-y`，避免把上一支影片的殘留音訊拼進來。
+- **聊天記憶無法運作**：`schema.sql` 的對話表改為 `n8n_chat_histories`，欄位
+  （`id`/`session_id`/`message jsonb`）對齊 n8n Postgres Chat Memory 節點；工作流四
+  同步更新。
+- **工作流接線缺漏**：工作流一補上頻道→上傳清單解析、分頁、`splitInBatches` 迴圈
+  回接與 Embeddings 子節點；工作流二補上 Atom XML 解析（取得 `videoId`）、保留逐字
+  稿文字、彙整檢索歷史與 Embeddings 子節點。
+- `whisper_local` 片段時長加上非負保護，與其他後端一致。
+
 ### 新增
+- 逐字稿微服務可選 Bearer Token 認證（`TRANSCRIBER_API_KEY`）與 `/transcribe/batch`
+  筆數上限（`batch_max_items`）。
+- 本機執行時 `app/config.py` 會同時尋找 `./.env` 與 `../.env`，單一根目錄 `.env` 即可。
+
+### Docker（以 Docker 為主要部署方式）
+- `Dockerfile` 改為多階段建置、非 root 執行、內建 `HEALTHCHECK`。
+- `docker-compose.yml`：`db`／`transcriber` 僅綁定 `127.0.0.1`，全服務加 `restart`
+  與具名容器，n8n 依賴 transcriber 健康後啟動，`docker compose up -d --build` 一鍵啟動。
+- `docs/setup.md` 改寫為「clone → docker compose up → 匯入工作流」的逐步指南。
+
+### 新增（既有）
 - `Makefile`：`install`／`test`／`cov`／`lint`／`fmt`／`run`／`up`／`down` 等常用指令。
 - `LICENSE`（MIT）、`CONTRIBUTING.md`、`CHANGELOG.md`。
 - `.dockerignore` 以縮小映像建置上下文。

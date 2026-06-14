@@ -61,17 +61,22 @@ create index if not exists embeddings_vector_idx
     with (lists = 100);
 
 -- ---------------------------------------------------------------------------
--- Telegram conversation memory (Agentic RAG chat)
+-- Telegram conversation memory (Agentic RAG chat, workflow 04)
+--
+-- Column layout matches what n8n's "Postgres Chat Memory"
+-- (@n8n/n8n-nodes-langchain.memoryPostgresChat) node expects: a serial id, a
+-- text session_id (the Telegram chat id), and the serialized LangChain message
+-- as JSONB. Do NOT add NOT NULL columns the node won't populate, or writes fail.
 -- ---------------------------------------------------------------------------
-create table if not exists chat_history (
-    id              bigserial primary key,
-    session_id      text not null,             -- Telegram chat id
-    role            text not null,             -- user | assistant | system
-    message         text not null,
+create table if not exists n8n_chat_histories (
+    id              serial primary key,
+    session_id      varchar(255) not null,     -- Telegram chat id
+    message         jsonb not null,            -- {"type": "...", "data": {...}}
     created_at      timestamptz not null default now()
 );
 
-create index if not exists chat_history_session_idx on chat_history(session_id);
+create index if not exists n8n_chat_histories_session_idx
+    on n8n_chat_histories(session_id);
 
 -- ---------------------------------------------------------------------------
 -- Cosine-similarity retrieval used by n8n's Supabase Vector Store node.
